@@ -7,21 +7,20 @@ from urllib.parse import urlparse
 
 def extract_domain(url):
     """
-    Normalize a URL or domain by removing protocol, www., subdomains, and extracting the main domain part.
+    Normalize a URL or domain by removing protocol and www., and extracting the domain part.
     """
     if not url.strip():
         return None
     parsed = urlparse(url.strip().lower())
-    
-    # Extract the domain part (netloc) from the URL
     netloc = parsed.netloc if parsed.netloc else parsed.path
-    netloc = re.sub(r'^www\.', '', netloc)  # remove www.
-
-    # Split the domain into parts and keep the last two (main domain and TLD)
+    # Remove www and subdomains (e.g., restaurants.subway.com -> subway.com)
+    netloc = re.sub(r'^www\.', '', netloc)
     domain_parts = netloc.split('.')
+    
+    # We remove subdomains (e.g., "restaurants" from "restaurants.subway.com")
     if len(domain_parts) > 2:
-        netloc = '.'.join(domain_parts[-2:])  # Keep only the main domain and TLD (e.g., jimdosite.com)
-
+        netloc = '.'.join(domain_parts[-2:])  # Get the last two parts (subdomain removal)
+    
     return netloc.strip()
 
 
@@ -44,7 +43,7 @@ def domain_in_url(url, domain_list):
     Check if any domain in domain_list matches the end of the URL domain.
     """
     url_domain = extract_domain(url)
-    return any(url_domain == blocked for blocked in domain_list)
+    return any(url_domain.endswith(blocked) for blocked in domain_list)
 
 
 # ---------- Streamlit App ----------
@@ -67,7 +66,7 @@ def main():
         urls = load_file_lines(url_file)
         raw_blocklist = load_file_lines(block_file)
 
-        # Normalize and extract domains from the blocklist
+        # Extract the domain from each blocklist URL
         blocklist_domains = {extract_domain(url) for url in raw_blocklist if extract_domain(url)}
 
         st.write(f"🔢 Total URLs in File 1: **{len(urls)}**")
