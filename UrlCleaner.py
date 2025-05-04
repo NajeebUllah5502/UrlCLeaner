@@ -7,13 +7,21 @@ from urllib.parse import urlparse
 
 def extract_domain(url):
     """
-    Normalize a URL or domain by removing protocol and www., and extracting the domain part.
+    Normalize a URL or domain by removing protocol, www., subdomains, and extracting the main domain part.
     """
     if not url.strip():
         return None
     parsed = urlparse(url.strip().lower())
+    
+    # Extract the domain part (netloc) from the URL
     netloc = parsed.netloc if parsed.netloc else parsed.path
-    netloc = re.sub(r'^www\.', '', netloc)  # remove www
+    netloc = re.sub(r'^www\.', '', netloc)  # remove www.
+
+    # Split the domain into parts and keep the last two (main domain and TLD)
+    domain_parts = netloc.split('.')
+    if len(domain_parts) > 2:
+        netloc = '.'.join(domain_parts[-2:])  # Keep only the main domain and TLD (e.g., jimdosite.com)
+
     return netloc.strip()
 
 
@@ -36,7 +44,7 @@ def domain_in_url(url, domain_list):
     Check if any domain in domain_list matches the end of the URL domain.
     """
     url_domain = extract_domain(url)
-    return any(url_domain.endswith(blocked) for blocked in domain_list)
+    return any(url_domain == blocked for blocked in domain_list)
 
 
 # ---------- Streamlit App ----------
@@ -44,7 +52,7 @@ def domain_in_url(url, domain_list):
 def main():
     st.title("🧹 URL Filter App — Remove URLs by Domain Match")
 
-    st.markdown("""
+    st.markdown(""" 
     Upload two `.txt` files:
     - 📄 **File 1**: List of URLs to be filtered.
     - 🚫 **File 2**: Blocklist of domains or full URLs.
@@ -59,6 +67,7 @@ def main():
         urls = load_file_lines(url_file)
         raw_blocklist = load_file_lines(block_file)
 
+        # Normalize and extract domains from the blocklist
         blocklist_domains = {extract_domain(url) for url in raw_blocklist if extract_domain(url)}
 
         st.write(f"🔢 Total URLs in File 1: **{len(urls)}**")
